@@ -56,8 +56,6 @@ jobs:
 
     - name: Create Release using GitHub CLI
       run: |
-        gh release create ${{ github.event.inputs.tag }} ./启动器-${{ github.event.inputs.version }}-win-x64.zip \
-          --title "${{ github.event.inputs.release_name }}" \
-          --notes "${{ github.event.inputs.release_body }}"
+        gh release create "${{ github.event.inputs.tag }}" "./启动器-${{ github.event.inputs.version }}-win-x64.zip" --title "${{ github.event.inputs.release_name }}" --notes "${{ github.event.inputs.release_body }}"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
