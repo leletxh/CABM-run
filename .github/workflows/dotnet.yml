@@ -8,16 +8,6 @@ on:
         required: true
       tag:
         description: 'Git tag (e.g., v1.0.0)'
-        required: truename: Build and Release
-
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g., 1.0.0)'
-        required: true
-      tag:
-        description: 'Git tag (e.g., v1.0.0)'
         required: true
       release_name:
         description: 'Release name'
@@ -71,66 +61,3 @@ jobs:
           --notes "${{ github.event.inputs.release_body }}"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      release_name:
-        description: 'Release name'
-        required: false
-        default: 'Release v1.0.0'
-      release_body:
-        description: 'Release description'
-        required: false
-        default: 'Automated release'
-
-jobs:
-  build-and-release:
-    runs-on: windows-2022  # 使用包含 Visual Studio 2022 的环境
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Setup NuGet
-      uses: nuget/setup-nuget@v1
-      with:
-        nuget-version: 'latest'
-
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1
-
-    - name: Restore NuGet packages
-      run: nuget restore 启动器.sln
-
-    - name: Build project
-      run: msbuild 启动器.sln /p:Configuration=Release /p:Platform="Any CPU"
-
-    - name: Create output directory
-      run: mkdir output
-
-    - name: Copy build output
-      run: |
-        Copy-Item -Path "bin\Release\*" -Destination "output" -Recurse
-
-    - name: Package artifacts
-      run: |
-        Compress-Archive -Path ./output/* -DestinationPath 启动器-${{ github.event.inputs.version }}-win-x64.zip
-
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.event.inputs.tag }}
-        release_name: ${{ github.event.inputs.release_name }}
-        body: ${{ github.event.inputs.release_body }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./启动器-${{ github.event.inputs.version }}-win-x64.zip
-        asset_name: 启动器-${{ github.event.inputs.version }}-win-x64.zip
-        asset_content_type: application/zip
