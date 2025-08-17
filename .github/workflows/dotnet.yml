@@ -20,35 +20,36 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: windows-latest
+    runs-on: windows-2022  # 使用包含 Visual Studio 2022 的环境
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '6.x'
 
     - name: Setup NuGet
       uses: nuget/setup-nuget@v1
       with:
         nuget-version: 'latest'
 
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1
+
     - name: Restore NuGet packages
       run: nuget restore 启动器.sln
 
     - name: Build project
-      run: msbuild 启动器.sln /p:Configuration=Release
+      run: msbuild 启动器.sln /p:Configuration=Release /p:Platform="Any CPU"
 
-    - name: Publish project
+    - name: Create output directory
+      run: mkdir output
+
+    - name: Copy build output
       run: |
-        dotnet publish "启动器.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output ./publish
+        Copy-Item -Path "bin\Release\*" -Destination "output" -Recurse
 
     - name: Package artifacts
       run: |
-        Compress-Archive -Path ./publish/* -DestinationPath 启动器-${{ github.event.inputs.version }}-win-x64.zip
+        Compress-Archive -Path ./output/* -DestinationPath 启动器-${{ github.event.inputs.version }}-win-x64.zip
 
     - name: Create Release
       id: create_release
