@@ -1,0 +1,68 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+      tag:
+        description: 'Git tag (e.g., v1.0.0)'
+        required: true
+      release_name:
+        description: 'Release name'
+        required: false
+        default: 'Release v1.0.0'
+      release_body:
+        description: 'Release description'
+        required: false
+        default: 'Automated release'
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '6.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build project
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Publish project
+      run: |
+        dotnet publish "启动器.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output ./publish
+
+    - name: Package artifacts
+      run: |
+        Compress-Archive -Path ./publish/* -DestinationPath 启动器-${{ github.event.inputs.version }}-win-x64.zip
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.event.inputs.tag }}
+        release_name: ${{ github.event.inputs.release_name }}
+        body: ${{ github.event.inputs.release_body }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./启动器-${{ github.event.inputs.version }}-win-x64.zip
+        asset_name: 启动器-${{ github.event.inputs.version }}-win-x64.zip
+        asset_content_type: application/zip
