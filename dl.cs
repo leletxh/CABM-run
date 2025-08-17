@@ -96,7 +96,6 @@ namespace 启动器
                 update_log($"请求URL: {apiUrl}");
 
                 string tagResponse = "";
-
                 try
                 {
                     tagResponse = await httpClient.GetStringAsync(apiUrl);
@@ -155,7 +154,7 @@ namespace 启动器
                 if (useGitCloneProxy)
                 {
                     downloadUrl = baseUrl.Replace("https://github.com/", "https://wget.la/https://github.com/");
-                    update_log("使用gitclone代理下载");
+                    update_log("使用代理下载");
                 }
                 else
                 {
@@ -429,7 +428,7 @@ namespace 启动器
             }
             catch (Exception ex)
             {
-                throw new Exception($"下载文件失败: {ex.Message}");
+                throw new Exception($"下载文件失败: {ex.Message} 请尝试重启！！！");
             }
         }
 
