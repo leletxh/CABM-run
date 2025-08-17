@@ -92,7 +92,7 @@ namespace 启动器
 
                 // 2. 获取远程版本
                 update_log("正在连接到版本服务器...");
-                string apiUrl = "https://raw.githubusercontent.com/xhc2008/CABM/refs/heads/main/api/tag";
+                string apiUrl = "https://raw.githubusercontent.com/xhc2008/CABM/refs/heads/main/api/tag  ";
                 update_log($"请求URL: {apiUrl}");
 
                 string tagResponse = "";
@@ -106,7 +106,7 @@ namespace 启动器
                     update_log("尝试使用gitclone代理...");
 
                     // 使用gitclone代理
-                    string proxyUrl = apiUrl.Replace("https://raw.githubusercontent.com/", "https://wget.la/https://raw.githubusercontent.com/");
+                    string proxyUrl = apiUrl.Replace("https://raw.githubusercontent.com/  ", "https://wget.la/https  ://raw.githubusercontent.com/");
                     update_log($"代理URL: {proxyUrl}");
 
                     try
@@ -150,10 +150,10 @@ namespace 启动器
                 step.Current = 1;
 
                 // 构建下载URL，如果使用了代理则也应用到下载URL
-                string baseUrl = $"https://github.com/xhc2008/CABM/releases/download/{tag}/Windows-Release-{tag}.zip";
+                string baseUrl = $"https://github.com/xhc2008/CABM/releases/download/  {tag}/Windows-Release-{tag}.zip";
                 if (useGitCloneProxy)
                 {
-                    downloadUrl = baseUrl.Replace("https://github.com/", "https://wget.la/https://github.com/");
+                    downloadUrl = baseUrl.Replace("https://github.com/  ", "https://wget.la/https  ://github.com/");
                     update_log("使用代理下载");
                 }
                 else
@@ -243,7 +243,8 @@ namespace 启动器
                 {
                     FileName = exePath,
                     Arguments = "--no-browser",
-                    UseShellExecute = true
+                    UseShellExecute = true,
+                    WorkingDirectory = extractPath // 设置工作目录为 C:\CABM
                 };
                 launchedProcess = Process.Start(startInfo); // 保存进程引用
 
@@ -277,7 +278,8 @@ namespace 启动器
                     {
                         FileName = firstExe,
                         Arguments = "--no-browser",
-                        UseShellExecute = true
+                        UseShellExecute = true,
+                        WorkingDirectory = extractPath // 设置工作目录为 C:\CABM
                     };
                     launchedProcess = Process.Start(startInfo); // 保存进程引用
 
@@ -352,7 +354,7 @@ namespace 启动器
                             if (!process.HasExited)
                             {
                                 process.Kill();
-                                process.WaitForExit(3000); // 等待最多3秒
+                                process.WaitForExit(3000);
                             }
                         }
                         catch (Exception ex)
@@ -476,7 +478,7 @@ namespace 启动器
                             if (processedEntries % 10 == 0 || processedEntries == totalEntries)
                             {
                                 var progressPercentage = (float)processedEntries / totalEntries;
-                                update_log($"解压进度: {progressPercentage:P0} ({processedEntries}/{totalEntries})");
+                                update_log($"解压文件: {destinationPath}");
                                 SetProgress(0.7f + (progressPercentage * 0.2f));
                             }
                         }
