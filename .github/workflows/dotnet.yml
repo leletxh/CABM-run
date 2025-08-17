@@ -31,11 +31,16 @@ jobs:
       with:
         dotnet-version: '6.x'
 
-    - name: Restore dependencies
-      run: dotnet restore
+    - name: Setup NuGet
+      uses: nuget/setup-nuget@v1
+      with:
+        nuget-version: 'latest'
+
+    - name: Restore NuGet packages
+      run: nuget restore 启动器.sln
 
     - name: Build project
-      run: dotnet build --configuration Release
+      run: msbuild 启动器.sln /p:Configuration=Release
 
     - name: Publish project
       run: |
