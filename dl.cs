@@ -150,7 +150,7 @@ namespace 启动器
                 step.Current = 1;
 
                 // 构建下载URL，如果使用了代理则也应用到下载URL
-                string baseUrl = $"https://github.com/xhc2008/CABM/releases/download/  {tag}/Windows-Release-{tag}.zip";
+                string baseUrl = $"https://github.com/xhc2008/CABM/releases/download/{tag}/Windows-Release-{tag}.zip";
                 if (useGitCloneProxy)
                 {
                     downloadUrl = baseUrl.Replace("https://github.com/  ", "https://wget.la/https  ://github.com/");
