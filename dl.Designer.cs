@@ -28,11 +28,11 @@
         /// </summary>
         private void InitializeComponent()
         {
-            AntdUI.StepsItem stepsItem1 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem2 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem3 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem4 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem5 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem11 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem12 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem13 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem14 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem15 = new AntdUI.StepsItem();
             this.progress = new AntdUI.Progress();
             this.step = new AntdUI.Steps();
             this.log = new ReaLTaiizor.Controls.RichTextBoxEdit();
@@ -50,16 +50,16 @@
             // step
             // 
             this.step.Font = new System.Drawing.Font("黑体", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            stepsItem1.Title = "准备安装";
-            stepsItem2.Title = "下载包体";
-            stepsItem3.Title = "校验哈希";
-            stepsItem4.Title = "解压包体";
-            stepsItem5.Title = "完成安装";
-            this.step.Items.Add(stepsItem1);
-            this.step.Items.Add(stepsItem2);
-            this.step.Items.Add(stepsItem3);
-            this.step.Items.Add(stepsItem4);
-            this.step.Items.Add(stepsItem5);
+            stepsItem11.Title = "准备安装";
+            stepsItem12.Title = "下载包体";
+            stepsItem13.Title = "校验哈希";
+            stepsItem14.Title = "解压包体";
+            stepsItem15.Title = "完成安装";
+            this.step.Items.Add(stepsItem11);
+            this.step.Items.Add(stepsItem12);
+            this.step.Items.Add(stepsItem13);
+            this.step.Items.Add(stepsItem14);
+            this.step.Items.Add(stepsItem15);
             this.step.Location = new System.Drawing.Point(14, 370);
             this.step.Name = "step";
             this.step.Size = new System.Drawing.Size(873, 39);
@@ -76,9 +76,10 @@
             this.log.EdgeColor = System.Drawing.Color.White;
             this.log.Font = new System.Drawing.Font("Tahoma", 10F);
             this.log.ForeColor = System.Drawing.Color.DimGray;
+            this.log.ImeMode = System.Windows.Forms.ImeMode.NoControl;
             this.log.Location = new System.Drawing.Point(12, 12);
             this.log.Name = "log";
-            this.log.ReadOnly = false;
+            this.log.ReadOnly = true;
             this.log.Size = new System.Drawing.Size(875, 313);
             this.log.SmoothingType = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             this.log.TabIndex = 2;

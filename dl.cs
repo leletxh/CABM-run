@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.IO;
 using System.IO.Compression;
 using System.Diagnostics;
+using Microsoft.Win32; // Required for Registry access
 
 namespace 启动器
 {
@@ -24,6 +25,10 @@ namespace 启动器
         private string localTagPath;
         private bool useGitCloneProxy = false;
         private Process launchedProcess = null; // 保存启动的进程引用
+
+        // --- Registry Constants ---
+        private const string REGISTRY_KEY_PATH = @"SOFTWARE\YourAppName"; // Replace 'YourAppName' with your actual app name
+        private const string REGISTRY_VALUE_NAME = "LaunchCount";
 
         public dl()
         {
@@ -42,14 +47,12 @@ namespace 启动器
             KillAppProcess();
         }
 
-        public void update_log(string str)
+        public void update_log(string str) => this.Invoke((MethodInvoker)delegate
         {
-            this.Invoke((MethodInvoker)delegate {
-                string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                log.Text += $"\n[{timestamp}] {str}";
-                nowlog.Text = str;
-            });
-        }
+            string timestamp = DateTime.Now.ToString("HH:mm:ss");
+            log.Text += $"\n[{timestamp}] {str}";
+            nowlog.Text = str;
+        });
 
         private void steps1_ItemClick(object sender, AntdUI.StepsItemEventArgs e)
         {
@@ -67,8 +70,121 @@ namespace 启动器
             update_log("启动器初始化完成");
             update_log("开始执行自动更新流程...");
 
-            // 创建线程运行下载方法
+            // --- Add Registry Count Logic Here ---
+            int launchCount = GetLaunchCountFromRegistry();
+            update_log($"当前启动次数: {launchCount}");
+
+            // Check if it's the 50th launch or more
+            if (launchCount >= 50)
+            {
+                update_log("检测到超过50次启动，询问是否开启彩蛋...");
+
+                // --- Show the MessageBox ---
+                DialogResult result = MessageBox.Show(
+                    "您已经启动了超过50次！\n是否要开启彩蛋模式？\n(这将打开一个特殊网页)",
+                    "彩蛋提示",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.Yes)
+                {
+                    update_log("用户选择开启彩蛋，打开网页...");
+                    OpenSpecialWebPage();
+                }
+                else
+                {
+                    update_log("用户选择不开启彩蛋。");
+                }
+
+                // Reset the counter after showing the dialog (optional, depends on desired behavior)
+                // ResetLaunchCountInRegistry(); // Uncomment if you want to reset after 50th launch
+            }
+
+            // Increment the count *after* checking, but before starting the download process
+            IncrementLaunchCountInRegistry();
+
+            // Create thread to run download method
             Task.Run(() => start_download());
+        }
+
+        // --- Registry Helper Methods ---
+        private int GetLaunchCountFromRegistry()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY_PATH))
+                {
+                    object value = key.GetValue(REGISTRY_VALUE_NAME);
+                    if (value != null && int.TryParse(value.ToString(), out int count))
+                    {
+                        return count;
+                    }
+                    else
+                    {
+                        // If key doesn't exist or parsing fails, assume 0
+                        return 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                update_log($"读取启动次数失败: {ex.Message}");
+                return 0; // Fallback to 0 on error
+            }
+        }
+
+        private void IncrementLaunchCountInRegistry()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY_PATH))
+                {
+                    int currentCount = GetLaunchCountFromRegistry();
+                    int newCount = currentCount + 1;
+                    key.SetValue(REGISTRY_VALUE_NAME, newCount, RegistryValueKind.DWord);
+                    update_log($"启动次数已增加到: {newCount}");
+                }
+            }
+            catch (Exception ex)
+            {
+                update_log($"增加启动次数失败: {ex.Message}");
+            }
+        }
+
+        // --- Optional: Reset Counter ---
+        private void ResetLaunchCountInRegistry()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY_PATH))
+                {
+                    key.SetValue(REGISTRY_VALUE_NAME, 0, RegistryValueKind.DWord);
+                    update_log("启动次数已重置为 0");
+                }
+            }
+            catch (Exception ex)
+            {
+                update_log($"重置启动次数失败: {ex.Message}");
+            }
+        }
+
+        // --- Open Special Web Page ---
+        private void OpenSpecialWebPage()
+        {
+            try
+            {
+                // Ensure the URL is valid
+                string url = "https://sr.mihoyo.com/main";
+                update_log($"尝试打开网页: {url}");
+                System.Diagnostics.Process.Start(url);
+                update_log("网页已打开。");
+            }
+            catch (Exception ex)
+            {
+                update_log($"打开网页失败: {ex.Message}");
+                MessageBox.Show($"无法打开网页: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private async void start_download()
@@ -92,7 +208,7 @@ namespace 启动器
 
                 // 2. 获取远程版本
                 update_log("正在连接到版本服务器...");
-                string apiUrl = "https://raw.githubusercontent.com/xhc2008/CABM/refs/heads/main/api/tag  ";
+                string apiUrl = "https://raw.githubusercontent.com/xhc2008/CABM/refs/heads/main/api/tag";
                 update_log($"请求URL: {apiUrl}");
 
                 string tagResponse = "";
@@ -106,7 +222,7 @@ namespace 启动器
                     update_log("尝试使用gitclone代理...");
 
                     // 使用gitclone代理
-                    string proxyUrl = apiUrl.Replace("https://raw.githubusercontent.com/  ", "https://wget.la/https  ://raw.githubusercontent.com/");
+                    string proxyUrl = apiUrl.Replace("https://raw.githubusercontent.com/", "https://wget.la/https://raw.githubusercontent.com/");
                     update_log($"代理URL: {proxyUrl}");
 
                     try
@@ -153,7 +269,7 @@ namespace 启动器
                 string baseUrl = $"https://github.com/xhc2008/CABM/releases/download/{tag}/Windows-Release-{tag}.zip";
                 if (useGitCloneProxy)
                 {
-                    downloadUrl = baseUrl.Replace("https://github.com/  ", "https://wget.la/https://github.com/");
+                    downloadUrl = baseUrl.Replace("https://github.com/", "https://wget.la/https://github.com/");
                     update_log("使用代理下载");
                 }
                 else
