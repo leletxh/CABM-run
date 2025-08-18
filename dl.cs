@@ -153,7 +153,7 @@ namespace 启动器
                 string baseUrl = $"https://github.com/xhc2008/CABM/releases/download/{tag}/Windows-Release-{tag}.zip";
                 if (useGitCloneProxy)
                 {
-                    downloadUrl = baseUrl.Replace("https://github.com/  ", "https://wget.la/https  ://github.com/");
+                    downloadUrl = baseUrl.Replace("https://github.com/  ", "https://wget.la/https://github.com/");
                     update_log("使用代理下载");
                 }
                 else
