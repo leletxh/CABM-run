@@ -12,6 +12,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Diagnostics;
 using Microsoft.Win32; // Required for Registry access
+using System.Threading; // For CancellationToken and Delay
 
 namespace 启动器
 {
@@ -29,6 +30,10 @@ namespace 启动器
         // --- Registry Constants ---
         private const string REGISTRY_KEY_PATH = @"SOFTWARE\YourAppName"; // Replace 'YourAppName' with your actual app name
         private const string REGISTRY_VALUE_NAME = "LaunchCount";
+
+        // --- Retry Configuration ---
+        private const int MAX_RETRIES = 5; // 最大重试次数
+        private static readonly TimeSpan RETRY_DELAY = TimeSpan.FromSeconds(5); // 基础重试延迟
 
         public dl()
         {
@@ -212,28 +217,37 @@ namespace 启动器
                 update_log($"请求URL: {apiUrl}");
 
                 string tagResponse = "";
+
+                // 2. 获取远程版本 - 使用重试逻辑
                 try
                 {
-                    tagResponse = await httpClient.GetStringAsync(apiUrl);
+                    tagResponse = await RetryOnExceptionAsync(async () =>
+                    {
+                        update_log($"尝试直接连接获取版本信息...");
+                        return await httpClient.GetStringAsync(apiUrl);
+                    }, MAX_RETRIES, RETRY_DELAY);
                 }
                 catch (Exception ex)
                 {
-                    update_log($"直接连接失败: {ex.Message}");
-                    update_log("尝试使用gitclone代理...");
+                    update_log($"直接连接获取版本失败: {ex.Message}");
+                    update_log("尝试使用gitclone代理获取版本...");
 
-                    // 使用gitclone代理
                     string proxyUrl = apiUrl.Replace("https://raw.githubusercontent.com/", "https://wget.la/https://raw.githubusercontent.com/");
                     update_log($"代理URL: {proxyUrl}");
 
                     try
                     {
-                        tagResponse = await httpClient.GetStringAsync(proxyUrl);
-                        useGitCloneProxy = true;
-                        update_log("✓ 代理连接成功");
+                        tagResponse = await RetryOnExceptionAsync(async () =>
+                        {
+                            update_log($"尝试通过代理连接获取版本信息...");
+                            return await httpClient.GetStringAsync(proxyUrl);
+                        }, MAX_RETRIES, RETRY_DELAY);
+                        useGitCloneProxy = true; // 如果代理成功获取tag，则后续下载也用代理
+                        update_log("✓ 代理获取版本成功");
                     }
                     catch (Exception proxyEx)
                     {
-                        throw new Exception($"代理连接也失败: {proxyEx.Message}");
+                        throw new Exception($"代理获取版本也失败: {proxyEx.Message}");
                     }
                 }
 
@@ -287,7 +301,7 @@ namespace 启动器
                 update_log($"下载URL: {downloadUrl}");
 
                 // 5. 下载文件
-                await DownloadFileAsync(downloadUrl, localFilePath);
+                await DownloadWithResumeAsync(downloadUrl, localFilePath, MAX_RETRIES, RETRY_DELAY);
 
                 update_log("✓ 文件下载完成");
                 update_log($"文件大小: {FormatFileSize(new FileInfo(localFilePath).Length)}");
@@ -491,63 +505,170 @@ namespace 启动器
             }
         }
 
-        private async Task DownloadFileAsync(string url, string filePath)
+        /// <summary>
+        /// 支持断点续传和自动重试的文件下载方法。
+        /// </summary>
+        /// <param name="url">要下载的文件URL</param>
+        /// <param name="filePath">本地保存的文件路径</param>
+        /// <param name="maxRetries">最大重试次数</param>
+        /// <param name="retryDelay">基础重试延迟</param>
+        private async Task DownloadWithResumeAsync(string url, string filePath, int maxRetries, TimeSpan retryDelay)
         {
-            try
-            {
-                update_log("建立下载连接...");
-                using (var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
-                {
-                    response.EnsureSuccessStatusCode();
-                    var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-                    var canReportProgress = totalBytes != -1;
+            long totalBytes = 0;
+            long alreadyDownloadedBytes = 0;
+            bool canReportProgress = false;
+            int lastReportedProgress = 0;
 
-                    if (canReportProgress)
+            // 检查本地是否已存在部分下载的文件
+            if (File.Exists(filePath))
+            {
+                alreadyDownloadedBytes = new FileInfo(filePath).Length;
+                update_log($"发现部分下载的文件，已下载: {FormatFileSize(alreadyDownloadedBytes)}");
+            }
+
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                     {
-                        update_log($"文件总大小: {FormatFileSize(totalBytes)}");
+                        // 如果已下载部分，则设置 Range 头
+                        if (alreadyDownloadedBytes > 0)
+                        {
+                            request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(alreadyDownloadedBytes, null);
+                            update_log($"设置断点续传 Range: bytes={alreadyDownloadedBytes}-");
+                        }
+
+                        update_log($"发起下载请求 (尝试 {attempt + 1}/{maxRetries + 1})...");
+                        using (var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead))
+                        {
+                            // 检查状态码
+                            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                            {
+                                // 全新下载
+                                update_log("服务器响应 200 OK，进行全新下载。");
+                                alreadyDownloadedBytes = 0; // 重置已下载字节
+                                if (File.Exists(filePath)) File.Delete(filePath); // 删除旧文件
+                            }
+                            else if (response.StatusCode == System.Net.HttpStatusCode.PartialContent)
+                            {
+                                // 断点续传成功
+                                update_log("服务器响应 206 Partial Content，断点续传成功。");
+                            }
+                            else if (response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+                            {
+                                // 请求的 Range 不满足，可能文件已在服务器端更新或本地文件损坏
+                                update_log("服务器响应 416 Range Not Satisfiable，可能文件已更新，重新开始下载。");
+                                alreadyDownloadedBytes = 0;
+                                if (File.Exists(filePath)) File.Delete(filePath);
+                                // 重新发起请求，不带 Range 头
+                                continue; // 重新循环，发起不带 Range 的请求
+                            }
+                            else
+                            {
+                                response.EnsureSuccessStatusCode(); // 抛出其他非成功状态码的异常
+                            }
+
+                            totalBytes = response.Content.Headers.ContentLength ?? -1L;
+                            canReportProgress = totalBytes != -1;
+                            if (canReportProgress)
+                            {
+                                // 对于续传，总大小是已下载 + 响应内容长度
+                                long effectiveTotalBytes = alreadyDownloadedBytes + (response.Content.Headers.ContentLength ?? 0);
+                                update_log($"文件总大小: {FormatFileSize(effectiveTotalBytes)}, 需要下载: {FormatFileSize(response.Content.Headers.ContentLength ?? 0)}");
+                            }
+                            else
+                            {
+                                update_log("无法获取文件大小信息");
+                            }
+
+                            using (var contentStream = await response.Content.ReadAsStreamAsync())
+                            using (var fileStream = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None, 8192, true)) // 使用 Append 模式
+                            {
+                                var buffer = new byte[8192];
+                                var totalBytesReadInThisAttempt = 0L;
+                                int bytesRead;
+
+                                update_log("开始接收数据流...");
+
+                                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                                {
+                                    await fileStream.WriteAsync(buffer, 0, bytesRead);
+                                    totalBytesReadInThisAttempt += bytesRead;
+                                    alreadyDownloadedBytes += bytesRead; // 更新总已下载字节
+
+                                    if (canReportProgress)
+                                    {
+                                        // 计算基于总大小的进度
+                                        long effectiveTotalBytes = alreadyDownloadedBytes + (response.Content.Headers.ContentLength ?? (totalBytes - alreadyDownloadedBytes));
+                                        var displayProgress = effectiveTotalBytes > 0 ? (float)alreadyDownloadedBytes / effectiveTotalBytes : 0;
+                                        int currentProgress = (int)(displayProgress * 20);
+                                        if (currentProgress > lastReportedProgress)
+                                        {
+                                            lastReportedProgress = currentProgress;
+                                            update_log($"下载进度: {displayProgress:P0} ({FormatFileSize(alreadyDownloadedBytes)}/{FormatFileSize(effectiveTotalBytes)})");
+                                        }
+                                        // 更新UI进度条 (0.1 到 0.6)
+                                        SetProgress(0.1f + (displayProgress * 0.5f));
+                                    }
+                                }
+
+                                update_log($"本次尝试下载完成: {FormatFileSize(totalBytesReadInThisAttempt)} 已接收");
+                                // 如果成功完成，跳出重试循环
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (attempt == maxRetries)
+                    {
+                        throw new Exception($"下载文件在 {maxRetries + 1} 次尝试后仍然失败: {ex.Message}", ex);
                     }
                     else
                     {
-                        update_log("无法获取文件大小信息");
-                    }
-
-                    using (var contentStream = await response.Content.ReadAsStreamAsync())
-                    using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
-                    {
-                        var buffer = new byte[8192];
-                        var totalBytesRead = 0L;
-                        int bytesRead;
-                        int lastReportedProgress = 0;
-
-                        update_log("开始接收数据流...");
-
-                        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                        {
-                            await fileStream.WriteAsync(buffer, 0, bytesRead);
-                            totalBytesRead += bytesRead;
-
-                            if (canReportProgress)
-                            {
-                                var displayProgress = (float)totalBytesRead / totalBytes;
-                                int currentProgress = (int)(displayProgress * 20);
-                                if (currentProgress > lastReportedProgress)
-                                {
-                                    lastReportedProgress = currentProgress;
-                                    update_log($"下载进度: {displayProgress:P0} ({FormatFileSize(totalBytesRead)}/{FormatFileSize(totalBytes)})");
-                                }
-
-                                SetProgress(0.1f + (displayProgress * 0.5f));
-                            }
-                        }
-
-                        update_log($"下载完成: {FormatFileSize(totalBytesRead)} 已接收");
+                        update_log($"下载失败 (尝试 {attempt + 1}/{maxRetries + 1}): {ex.Message}. 等待 {retryDelay.TotalSeconds} 秒后重试...");
+                        await Task.Delay(retryDelay);
+                        // 可以在这里增加指数退避，例如 retryDelay *= 2;
                     }
                 }
             }
-            catch (Exception ex)
+        }
+
+
+        /// <summary>
+        /// 通用的带重试机制的异步操作执行器，适用于不涉及文件流的简单网络请求。
+        /// </summary>
+        /// <typeparam name="T">操作返回的结果类型</typeparam>
+        /// <param name="operation">要执行的异步操作</param>
+        /// <param name="maxRetries">最大重试次数</param>
+        /// <param name="retryDelay">基础重试延迟</param>
+        /// <returns>操作成功后的结果</returns>
+        private async Task<T> RetryOnExceptionAsync<T>(Func<Task<T>> operation, int maxRetries, TimeSpan retryDelay)
+        {
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
             {
-                throw new Exception($"下载文件失败: {ex.Message} 请尝试重启！！！");
+                try
+                {
+                    return await operation();
+                }
+                catch (Exception ex)
+                {
+                    if (attempt == maxRetries)
+                    {
+                        throw new Exception($"操作在 {maxRetries + 1} 次尝试后仍然失败: {ex.Message}", ex);
+                    }
+                    else
+                    {
+                        update_log($"操作失败 (尝试 {attempt + 1}/{maxRetries + 1}): {ex.Message}. 等待 {retryDelay.TotalSeconds} 秒后重试...");
+                        await Task.Delay(retryDelay);
+                        // 可以在这里增加指数退避，例如 retryDelay *= 2;
+                    }
+                }
             }
+            // 这行代码理论上不会执行到，因为循环要么返回，要么抛异常
+            throw new InvalidOperationException("重试逻辑异常");
         }
 
         private void ExtractFileWithMerge(string zipFilePath, string extractPath)
