@@ -28,15 +28,16 @@
         /// </summary>
         private void InitializeComponent()
         {
-            AntdUI.StepsItem stepsItem11 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem12 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem13 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem14 = new AntdUI.StepsItem();
-            AntdUI.StepsItem stepsItem15 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem6 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem7 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem8 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem9 = new AntdUI.StepsItem();
+            AntdUI.StepsItem stepsItem10 = new AntdUI.StepsItem();
             this.progress = new AntdUI.Progress();
             this.step = new AntdUI.Steps();
             this.log = new ReaLTaiizor.Controls.RichTextBoxEdit();
             this.nowlog = new AntdUI.Label();
+            this.label1 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // progress
@@ -50,16 +51,16 @@
             // step
             // 
             this.step.Font = new System.Drawing.Font("黑体", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            stepsItem11.Title = "准备安装";
-            stepsItem12.Title = "下载包体";
-            stepsItem13.Title = "校验哈希";
-            stepsItem14.Title = "解压包体";
-            stepsItem15.Title = "完成安装";
-            this.step.Items.Add(stepsItem11);
-            this.step.Items.Add(stepsItem12);
-            this.step.Items.Add(stepsItem13);
-            this.step.Items.Add(stepsItem14);
-            this.step.Items.Add(stepsItem15);
+            stepsItem6.Title = "准备安装";
+            stepsItem7.Title = "下载包体";
+            stepsItem8.Title = "校验哈希";
+            stepsItem9.Title = "解压包体";
+            stepsItem10.Title = "完成安装";
+            this.step.Items.Add(stepsItem6);
+            this.step.Items.Add(stepsItem7);
+            this.step.Items.Add(stepsItem8);
+            this.step.Items.Add(stepsItem9);
+            this.step.Items.Add(stepsItem10);
             this.step.Location = new System.Drawing.Point(14, 370);
             this.step.Name = "step";
             this.step.Size = new System.Drawing.Size(873, 39);
@@ -97,13 +98,23 @@
             this.nowlog.TabIndex = 3;
             this.nowlog.Text = "最新日志";
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(12, 441);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(245, 15);
+            this.label1.TabIndex = 4;
+            this.label1.Text = "这是最新版，也可能是最后一版";
+            // 
             // dl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
-            this.ClientSize = new System.Drawing.Size(900, 450);
+            this.ClientSize = new System.Drawing.Size(900, 469);
             this.ControlBox = false;
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.nowlog);
             this.Controls.Add(this.log);
             this.Controls.Add(this.step);
@@ -113,6 +124,7 @@
             this.Text = "安装";
             this.Load += new System.EventHandler(this.dl_Load);
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -122,6 +134,7 @@
         private AntdUI.Steps step;
         private ReaLTaiizor.Controls.RichTextBoxEdit log;
         private AntdUI.Label nowlog;
+        private System.Windows.Forms.Label label1;
     }
 }
 

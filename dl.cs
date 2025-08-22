@@ -472,7 +472,6 @@ namespace 启动器
                     return;
                 }
 
-                // 方法2: 查找并杀死所有app.exe进程
                 Process[] processes = Process.GetProcessesByName("app");
                 if (processes.Length > 0)
                 {
