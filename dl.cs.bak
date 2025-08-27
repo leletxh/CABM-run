@@ -34,7 +34,6 @@ namespace 启动器
         // --- Retry Configuration ---
         private const int MAX_RETRIES = 5; // 最大重试次数
         private static readonly TimeSpan RETRY_DELAY = TimeSpan.FromSeconds(5); // 基础重试延迟
-        private const string MIRROR_PREFIX = "https://wget.la/";
 
         public dl()
         {
@@ -390,9 +389,8 @@ namespace 启动器
             }
             catch (Exception ex)
             {
-                update_log($"叕出错误了喵：{ex.Message}");
-                update_log($"如果是病毒，请关闭杀毒软件喵");
-                update_log($"复制完整的日志反馈吧喵：{ex.StackTrace}");
+                update_log($"小猫娘：叕出错误了喵：{ex.Message}");
+                update_log($"小猫娘：复制完整的日志反馈吧喵：{ex.StackTrace}");
                 SetProgress(0.0f); // 重置进度条表示错误
             }
         }
@@ -542,11 +540,6 @@ namespace 启动器
             long alreadyDownloadedBytes = 0;
             bool canReportProgress = false;
             int lastReportedProgress = 0;
-            string originalUrl = url; // 保存原始URL，用于重试时切换到镜像
-            bool isUsingMirror = false; // 标记是否正在使用镜像
-            const long MINIMUM_SPEED_THRESHOLD = 1024 * 10; // 10KB/s的最小速度阈值
-            const int SPEED_CHECK_INTERVAL = 5000; // 5秒检查一次速度
-            var speedCheckToken = new CancellationTokenSource();
 
             // 检查本地是否已存在部分下载的文件
             if (File.Exists(filePath))
@@ -559,21 +552,13 @@ namespace 启动器
             {
                 try
                 {
-                    // 在重试时检查是否应该切换到镜像URL
-                    if (attempt > 0 && !isUsingMirror && originalUrl.StartsWith("https://github.com/"))
-                    {
-                        url = originalUrl.Replace("https://github.com/", MIRROR_PREFIX + "https://github.com/");
-                        isUsingMirror = true;
-                        update_log("主下载地址失败，切换到镜像地址重试喵~");
-                    }
-                    
                     using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                     {
                         // 如果已下载部分，则设置 Range 头
                         if (alreadyDownloadedBytes > 0)
                         {
                             request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(alreadyDownloadedBytes, null);
-                            update_log($"完了断了，赶紧记上位置 {alreadyDownloadedBytes}-");
+                            update_log($"完了断了，赶紧记上 {alreadyDownloadedBytes}-");
                         }
 
                         update_log($"我试试喵 {attempt + 1}/{maxRetries + 1})喵~");
@@ -625,68 +610,29 @@ namespace 启动器
                                 var buffer = new byte[8192];
                                 var totalBytesReadInThisAttempt = 0L;
                                 int bytesRead;
-                                var lastBytesReadTime = DateTime.Now;
-                                var lastBytesReadCount = alreadyDownloadedBytes;
-                                var isSpeedCheckRunning = true;
 
                                 update_log("文件片来了，嘿咻，我要干活了，没空和你聊天了");
 
-                                // 启动速度检测任务
-                                _ = Task.Run(async () =>
+                                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                                 {
-                                    while (isSpeedCheckRunning && !speedCheckToken.Token.IsCancellationRequested)
-                                    {
-                                        await Task.Delay(SPEED_CHECK_INTERVAL, speedCheckToken.Token);
-                                        
-                                        // 检查下载速度，如果速度过慢且未使用镜像，则切换到镜像
-                                        if (!isUsingMirror && originalUrl.StartsWith("https://github.com/"))
-                                        {
-                                            var timeElapsed = DateTime.Now.Subtract(lastBytesReadTime).TotalSeconds;
-                                            if (timeElapsed > 0)
-                                            {
-                                                var speed = (alreadyDownloadedBytes - lastBytesReadCount) / timeElapsed;
-                                                if (speed < MINIMUM_SPEED_THRESHOLD)
-                                                {
-                                                    update_log($"下载速度太慢了: {FormatFileSize((long)speed)}/s，下次尝试将使用镜像地址喵~");
-                                                    // 我们不能直接在这里修改url，因为这需要重新发起请求
-                                                    // 但我们可以设置一个标志，在下一次重试时使用镜像
-                                                }
-                                            }
-                                        }
-                                        lastBytesReadCount = alreadyDownloadedBytes;
-                                        lastBytesReadTime = DateTime.Now;
-                                    }
-                                }, speedCheckToken.Token);
+                                    await fileStream.WriteAsync(buffer, 0, bytesRead);
+                                    totalBytesReadInThisAttempt += bytesRead;
+                                    alreadyDownloadedBytes += bytesRead; // 更新总已下载字节
 
-                                try
-                                {
-                                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                                    if (canReportProgress)
                                     {
-                                        await fileStream.WriteAsync(buffer, 0, bytesRead);
-                                        totalBytesReadInThisAttempt += bytesRead;
-                                        alreadyDownloadedBytes += bytesRead; // 更新总已下载字节
-
-                                        if (canReportProgress)
+                                        // 计算基于总大小的进度
+                                        long effectiveTotalBytes = alreadyDownloadedBytes + (response.Content.Headers.ContentLength ?? (totalBytes - alreadyDownloadedBytes));
+                                        var displayProgress = effectiveTotalBytes > 0 ? (float)alreadyDownloadedBytes / effectiveTotalBytes : 0;
+                                        int currentProgress = (int)(displayProgress * 20);
+                                        if (currentProgress > lastReportedProgress)
                                         {
-                                            // 计算基于总大小的进度
-                                            long effectiveTotalBytes = alreadyDownloadedBytes + (response.Content.Headers.ContentLength ?? (totalBytes - alreadyDownloadedBytes));
-                                            var displayProgress = effectiveTotalBytes > 0 ? (float)alreadyDownloadedBytes / effectiveTotalBytes : 0;
-                                            int currentProgress = (int)(displayProgress * 20);
-                                            if (currentProgress > lastReportedProgress)
-                                            {
-                                                lastReportedProgress = currentProgress;
-                                                update_log($"系统播报，下载进度: {displayProgress:P0} ({FormatFileSize(alreadyDownloadedBytes)}/{FormatFileSize(effectiveTotalBytes)})");
-                                            }
-                                            // 更新UI进度条 (0.1 到 0.6)
-                                            SetProgress(0.1f + (displayProgress * 0.5f));
+                                            lastReportedProgress = currentProgress;
+                                            update_log($"系统播报，下载进度: {displayProgress:P0} ({FormatFileSize(alreadyDownloadedBytes)}/{FormatFileSize(effectiveTotalBytes)})");
                                         }
+                                        // 更新UI进度条 (0.1 到 0.6)
+                                        SetProgress(0.1f + (displayProgress * 0.5f));
                                     }
-                                }
-                                finally
-                                {
-                                    // 停止速度检测
-                                    isSpeedCheckRunning = false;
-                                    speedCheckToken.Cancel();
                                 }
 
                                 update_log($"真的吗成功了耶: {FormatFileSize(totalBytesReadInThisAttempt)} 已接收");
@@ -698,9 +644,6 @@ namespace 启动器
                 }
                 catch (Exception ex)
                 {
-                    // 取消速度检测
-                    speedCheckToken.Cancel();
-                    
                     if (attempt == maxRetries)
                     {
                         throw new Exception($"下载文件在 {maxRetries + 1} 次尝试后仍然失败: {ex.Message}", ex);

@@ -38,6 +38,7 @@
             this.log = new ReaLTaiizor.Controls.RichTextBoxEdit();
             this.nowlog = new AntdUI.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // progress
@@ -84,7 +85,7 @@
             this.log.Size = new System.Drawing.Size(875, 313);
             this.log.SmoothingType = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             this.log.TabIndex = 2;
-            this.log.Text = "程序已启动";
+            this.log.Text = "程序启动失败......";
             this.log.TextBackColor = System.Drawing.Color.White;
             this.log.TextBorderStyle = System.Windows.Forms.BorderStyle.None;
             this.log.TextFont = new System.Drawing.Font("Tahoma", 10F);
@@ -103,9 +104,19 @@
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(12, 441);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(245, 15);
+            this.label1.Size = new System.Drawing.Size(377, 15);
             this.label1.TabIndex = 4;
-            this.label1.Text = "这是最新版，也可能是最后一版";
+            this.label1.Text = "劳资复活啊，哈哈哈哈哈哈哈，魔↗术↘技↗巧↘";
+            this.label1.Click += new System.EventHandler(this.label1_Click);
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(826, 445);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(61, 15);
+            this.label2.TabIndex = 5;
+            this.label2.Text = "V1.1.0";
             // 
             // dl
             // 
@@ -114,6 +125,7 @@
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(900, 469);
             this.ControlBox = false;
+            this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.nowlog);
             this.Controls.Add(this.log);
@@ -135,6 +147,7 @@
         private ReaLTaiizor.Controls.RichTextBoxEdit log;
         private AntdUI.Label nowlog;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label label2;
     }
 }
 
