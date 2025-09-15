@@ -248,7 +248,6 @@ namespace 启动器
                 Thread.Sleep(1000);
                 string apiUrl = "https://raw.githubusercontent.com/xhc2008/CABM/refs/heads/main/api/tag";
                 update_log($"嗯，我要看这里: {apiUrl}");
-                update_log("接下来由京爷给你看看");
                 string tagResponse = "";
 
                 // 2. 获取远程版本 - 使用重试逻辑
@@ -259,11 +258,9 @@ namespace 启动器
                         update_log($"嗯，我向云端~duan~山那边~bian~");
                         return await httpClient.GetStringAsync(apiUrl);
                     }, MAX_RETRIES, RETRY_DELAY);
-                    update_log("AUV您猜真么zhao，我居然看见了");
                 }
                 catch (Exception ex)
                 {
-                    update_log($"AUV你干嘛~哎呦~我居然看不见: {ex.Message}");
                     update_log("我看看，嗯，试试走代理吧");
 
                     string proxyUrl = apiUrl.Replace("https://raw.githubusercontent.com/", "https://wget.la/https://raw.githubusercontent.com/");
@@ -312,7 +309,6 @@ namespace 启动器
                     }
                 }
                 step.Current = 1;
-                update_log("我回来了喵");
                 // 构建下载URL，如果使用了代理则也应用到下载URL
                 string baseUrl = $"https://github.com/xhc2008/CABM/releases/download/{tag}/Windows-Release-{tag}.zip";
                 if (useGitCloneProxy)
@@ -325,7 +321,7 @@ namespace 启动器
                     downloadUrl = baseUrl;
                 }
 
-                localFilePath = Path.Combine(Path.GetTempPath(), $"Windows-Release-{tag}.zip");
+                localFilePath = Path.Combine(Path.GetTempPath(), $"Windows-x64-Full-Release-{tag}.zip");
 
                 update_log($"下载地址构建完成喵");
                 update_log($"目标文件: {localFilePath}喵");
